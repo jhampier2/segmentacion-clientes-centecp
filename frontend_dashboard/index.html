@@ -268,20 +268,32 @@
             })
             .then(r => r.json())
             .then(data => {
-                var badCls = ['badge-low', 'badge-moderate', 'badge-high'];
-                var idx = data.cluster;
+                var badgeCls;
+                var clusterColor;
+                if (data.cluster === -1) {
+                    badgeCls = 'badge-outlier';
+                    clusterColor = '#9e9e9e';
+                } else {
+                    var badCls = ['badge-low', 'badge-moderate', 'badge-high'];
+                    var clusterColors = ['#00c853','#ffc107','#f44336'];
+                    badgeCls = badCls[data.cluster];
+                    clusterColor = clusterColors[data.cluster];
+                }
                 var badgeEl = document.getElementById('resultBadge');
-                badgeEl.className = 'result-badge ' + badCls[idx];
+                badgeEl.className = 'result-badge ' + badgeCls;
                 badgeEl.textContent = data.nivel_riesgo;
 
                 var sim = data.similitud_valor;
                 var gaugeFill = document.getElementById('gaugeFill');
                 gaugeFill.style.width = sim + '%';
-                gaugeFill.className = 'gauge-bar-fill gauge-' + idx;
-                document.getElementById('gaugeValue').textContent = sim + '%';
+                gaugeFill.className = 'gauge-bar-fill gauge-' + (data.cluster === -1 ? 'outlier' : data.cluster);
+                if (data.es_atipico || data.cluster === -1) {
+                    document.getElementById('gaugeValue').innerHTML = sim + '% <span style="font-size:13px;color:#ff9800;">⚠</span>';
+                } else {
+                    document.getElementById('gaugeValue').textContent = sim + '%';
+                }
 
                 var clusterColors = ['#00c853','#ffc107','#f44336'];
-                var clusterIcons = ['shield','alert','ban'];
                 var html = '<div class="compare-title">Comparativa entre clusters</div>';
                 for (var c = 0; c < 3; c++) {
                     var sc = data.similitudes_clusters[c];
@@ -314,8 +326,13 @@
                 }
                 document.getElementById('resultVariables').innerHTML = varHtml;
 
-                document.getElementById('resultRecomendacion').textContent =
-                    data.recomendacion_accion;
+                var recEl = document.getElementById('resultRecomendacion');
+                recEl.textContent = data.recomendacion_accion;
+                if (data.es_atipico || data.cluster === -1) {
+                    recEl.style.color = '#ff9800';
+                } else {
+                    recEl.style.color = '#aaa';
+                }
 
                 document.getElementById('evalResult').style.display = 'block';
             })

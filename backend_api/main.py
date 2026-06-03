@@ -44,11 +44,6 @@ def segmentar():
     data = request.get_json()
     vals = np.array([[data[f] for f in features]], dtype=float)
     scaled = scaler.transform(vals)
-    cluster = int(model.predict(scaled)[0])
-    centroid = model.cluster_centers_[cluster]
-    distancia = float(np.linalg.norm(scaled[0] - centroid))
-    umbral = dist_thresholds.get(cluster, 1.0)
-    similitud = max(0, min(100, int((1 - distancia / umbral) * 100)))
 
     similitudes_clusters = {}
     for c in range(3):
@@ -60,6 +55,23 @@ def segmentar():
             "nivel_riesgo": CLUSTER_LABELS[c],
             "porcentaje": c_sim
         }
+
+    mejor_cluster = max(range(3), key=lambda c: similitudes_clusters[c]["porcentaje"])
+    similitud = similitudes_clusters[mejor_cluster]["porcentaje"]
+    cluster = mejor_cluster
+    centroid = model.cluster_centers_[cluster]
+
+    SIMILITUD_MINIMA = 20
+    if similitud == 0:
+        nivel_riesgo = "No Clasificable"
+        recomendacion = "Cliente fuera de rango: no coincide con ningun perfil conocido de la cartera. Requiere evaluacion manual exhaustiva."
+        cluster = -1
+    elif similitud < SIMILITUD_MINIMA:
+        nivel_riesgo = CLUSTER_LABELS[cluster] + " (Atipico)"
+        recomendacion = "Cliente en zona gris: baja similitud con el perfil asignado. " + RECOMENDACIONES[cluster] + " con condiciones mas estrictas."
+    else:
+        nivel_riesgo = CLUSTER_LABELS[cluster]
+        recomendacion = RECOMENDACIONES[cluster]
 
     raw_vals = vals[0]
     contribucion_variables = []
@@ -75,12 +87,13 @@ def segmentar():
 
     return jsonify({
         "cluster": cluster,
-        "nivel_riesgo": CLUSTER_LABELS[cluster],
+        "nivel_riesgo": nivel_riesgo,
         "porcentaje_similitud": f"{similitud}%",
         "similitud_valor": similitud,
         "similitudes_clusters": similitudes_clusters,
         "contribucion_variables": contribucion_variables,
-        "recomendacion_accion": RECOMENDACIONES[cluster]
+        "recomendacion_accion": recomendacion,
+        "es_atipico": similitud < SIMILITUD_MINIMA
     })
 
 @app.route("/api/dashboard/resumen", methods=["GET"])
