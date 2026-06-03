@@ -214,11 +214,14 @@ Acción de negocio predefinida según el cluster. Son sugerencias basadas en reg
 2. El panel superior muestra **4 KPIs**: total de clientes, ingreso promedio, días de atraso promedio y utilización promedio.
 3. Los gráficos de dona y barras muestran la distribución de clientes por cluster.
 4. La tabla inferior lista los clientes con paginación (20 por página). Usa los **filtros** (Cobranza, Evaluación, Mejores Tasas) para ver solo clientes de un cluster específico.
-5. El botón **"Evaluar Nuevo Cliente"** abre un modal con entrada de 3 variables. El resultado muestra:
-   - **Gauge visual** de similitud (barra animada 0–100% con color por cluster)
-   - **Comparativa multi-cluster** — similitud del cliente contra los 3 clusters simultáneamente, para detectar casos en zona gris entre dos perfiles
-   - **Desglose por variable** — cada feature comparada contra el centroide con % de desviación coloreado (verde <20%, ámbar <50%, rojo >50%)
-   - Recomendación de negocio accionable
+5. El botón **"Evaluar Nuevo Cliente"** abre un modal con:
+   - **Banner informativo** explicando el propósito del evaluador
+   - **Iconos ⓘ en cada campo** con tooltips que explican qué significa cada variable, sus rangos típicos y por qué es relevante
+   - El resultado muestra:
+     - **Gauge visual** de similitud (barra animada 0–100% con color por cluster) + icono ⚠ si el cliente es atípico
+     - **Comparativa multi-cluster** — similitud del cliente contra los 3 clusters simultáneamente
+     - **Desglose por variable** — cada feature vs centroide con % de desviación coloreado (verde <20%, ámbar <50%, rojo >50%)
+   - Si la similitud es **0% en los 3 clusters**, se clasifica como **"No Clasificable"** (cluster -1) con recomendación de evaluación manual — no fuerza una clasificación incorrecta
 
 ### API (para integración)
 
@@ -263,10 +266,11 @@ curl -X POST http://localhost:5000/api/dashboard/actualizar
 
 | Campo | Tipo | Descripción |
 |-------|------|-------------|
-| `cluster` | int | ID del cluster asignado (0, 1, 2) |
-| `nivel_riesgo` | string | Etiqueta legible |
+| `cluster` | int | ID del cluster asignado (0, 1, 2, o **-1** si es No Clasificable) |
+| `nivel_riesgo` | string | Etiqueta legible. `"No Clasificable"` si el cliente no encaja en ningún perfil |
 | `porcentaje_similitud` | string | Similitud formateada (ej. `"90%"`) |
 | `similitud_valor` | int | Similitud como número puro (ej. `90`) |
+| `es_atipico` | bool | `true` si la similitud es <20% (zona gris) o 0% (outlier) |
 | `similitudes_clusters` | object | Similitud a cada uno de los 3 clusters `{0: {nivel_riesgo, porcentaje}, 1: {...}, 2: {...}}` |
 | `contribucion_variables` | array | Desglose por feature: `[{variable, valor_cliente, valor_centroide, desviacion_pct}]` |
 | `recomendacion_accion` | string | Acción de negocio sugerida |
