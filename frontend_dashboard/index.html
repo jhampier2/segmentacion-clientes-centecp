@@ -265,7 +265,7 @@
             btn.textContent = 'Procesando...';
             btn.disabled = true;
 
-            fetch('http://localhost:5000/api/segmentar', {
+            fetch('/api/segmentar', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)

@@ -1,4 +1,4 @@
-const API_BASE = "http://localhost:5000";
+const API_BASE = "";
 
 export async function fetchResumen() {
     const resp = await fetch(`${API_BASE}/api/dashboard/resumen`);
