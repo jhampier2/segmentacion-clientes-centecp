@@ -49,10 +49,37 @@ def segmentar():
     distancia = float(np.linalg.norm(scaled[0] - centroid))
     umbral = dist_thresholds.get(cluster, 1.0)
     similitud = max(0, min(100, int((1 - distancia / umbral) * 100)))
+
+    similitudes_clusters = {}
+    for c in range(3):
+        c_centroid = model.cluster_centers_[c]
+        c_dist = float(np.linalg.norm(scaled[0] - c_centroid))
+        c_umbral = dist_thresholds.get(c, 1.0)
+        c_sim = max(0, min(100, int((1 - c_dist / c_umbral) * 100)))
+        similitudes_clusters[c] = {
+            "nivel_riesgo": CLUSTER_LABELS[c],
+            "porcentaje": c_sim
+        }
+
+    raw_vals = vals[0]
+    contribucion_variables = []
+    for i, f in enumerate(features):
+        centroid_raw = float(scaler.inverse_transform([centroid])[0][i])
+        cliente_raw = float(raw_vals[i])
+        contribucion_variables.append({
+            "variable": f,
+            "valor_cliente": round(cliente_raw, 2),
+            "valor_centroide": round(centroid_raw, 2),
+            "desviacion_pct": round(abs(cliente_raw - centroid_raw) / max(abs(centroid_raw), 1) * 100, 1)
+        })
+
     return jsonify({
         "cluster": cluster,
         "nivel_riesgo": CLUSTER_LABELS[cluster],
         "porcentaje_similitud": f"{similitud}%",
+        "similitud_valor": similitud,
+        "similitudes_clusters": similitudes_clusters,
+        "contribucion_variables": contribucion_variables,
         "recomendacion_accion": RECOMENDACIONES[cluster]
     })
 

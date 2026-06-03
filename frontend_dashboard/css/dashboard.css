@@ -450,3 +450,131 @@ h1 {
     line-height: 1.5;
     font-style: italic;
 }
+
+.result-similitud-gauge {
+    margin: 16px 0;
+}
+
+.gauge-label {
+    font-size: 11px;
+    color: #666;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 6px;
+}
+
+.gauge-bar-bg {
+    height: 10px;
+    border-radius: 5px;
+    background: rgba(255,255,255,0.06);
+    overflow: hidden;
+}
+
+.gauge-bar-fill {
+    height: 100%;
+    border-radius: 5px;
+    transition: width 0.6s ease;
+}
+
+.gauge-0 { background: linear-gradient(90deg, #00c853, #69f0ae); }
+.gauge-1 { background: linear-gradient(90deg, #ffc107, #ffd54f); }
+.gauge-2 { background: linear-gradient(90deg, #f44336, #ff7961); }
+
+.gauge-value {
+    font-size: 28px;
+    font-weight: 700;
+    text-align: center;
+    margin-top: 8px;
+    background: linear-gradient(90deg, #ff007f, #00d4ff);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.compare-title {
+    font-size: 11px;
+    color: #666;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin: 16px 0 10px;
+    text-align: left;
+}
+
+.cluster-compare-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+    padding: 4px 0;
+    opacity: 0.4;
+    transition: opacity 0.3s;
+}
+
+.cluster-compare-row.active {
+    opacity: 1;
+}
+
+.compare-label {
+    font-size: 12px;
+    color: #ccc;
+    width: 110px;
+    flex-shrink: 0;
+}
+
+.compare-bar-bg {
+    flex: 1;
+    height: 6px;
+    border-radius: 3px;
+    background: rgba(255,255,255,0.06);
+    overflow: hidden;
+}
+
+.compare-bar-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.5s ease;
+}
+
+.compare-pct {
+    font-size: 12px;
+    color: #888;
+    width: 36px;
+    text-align: right;
+    flex-shrink: 0;
+}
+
+.variable-row {
+    padding: 10px 12px;
+    margin-bottom: 6px;
+    border-radius: 8px;
+    background: rgba(255,255,255,0.02);
+    border: 1px solid rgba(255,255,255,0.04);
+}
+
+.var-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+}
+
+.var-name {
+    font-size: 13px;
+    color: #ccc;
+}
+
+.var-desv {
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.var-values {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: #777;
+}
+
+.var-values strong {
+    color: #bbb;
+}

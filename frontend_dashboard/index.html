@@ -96,7 +96,13 @@
                 <button class="btn-evaluar btn-full" onclick="evaluarCliente()">Predecir Segmento</button>
                 <div id="evalResult" class="result-card" style="display:none;">
                     <div class="result-badge" id="resultBadge"></div>
-                    <div class="result-similitud" id="resultSimilitud"></div>
+                    <div class="result-similitud-gauge">
+                        <div class="gauge-label">Similitud al centroide</div>
+                        <div class="gauge-bar-bg"><div class="gauge-bar-fill" id="gaugeFill"></div></div>
+                        <div class="gauge-value" id="gaugeValue"></div>
+                    </div>
+                    <div class="result-clusters-compare" id="resultClustersCompare"></div>
+                    <div class="result-variables" id="resultVariables"></div>
                     <div class="result-recomendacion" id="resultRecomendacion"></div>
                 </div>
             </div>
@@ -262,30 +268,69 @@
             })
             .then(r => r.json())
             .then(data => {
-                const badCls = ['badge-low', 'badge-moderate', 'badge-high'];
-                const clsMap = {0: 0, 1: 1, 2: 2};
-                const idx = clsMap[data.cluster] ?? 0;
-                const badgeEl = document.getElementById('resultBadge');
+                var badCls = ['badge-low', 'badge-moderate', 'badge-high'];
+                var idx = data.cluster;
+                var badgeEl = document.getElementById('resultBadge');
                 badgeEl.className = 'result-badge ' + badCls[idx];
                 badgeEl.textContent = data.nivel_riesgo;
 
-                document.getElementById('resultSimilitud').textContent =
-                    'Similitud: ' + data.porcentaje_similitud;
+                var sim = data.similitud_valor;
+                var gaugeFill = document.getElementById('gaugeFill');
+                gaugeFill.style.width = sim + '%';
+                gaugeFill.className = 'gauge-bar-fill gauge-' + idx;
+                document.getElementById('gaugeValue').textContent = sim + '%';
+
+                var clusterColors = ['#00c853','#ffc107','#f44336'];
+                var clusterIcons = ['shield','alert','ban'];
+                var html = '<div class="compare-title">Comparativa entre clusters</div>';
+                for (var c = 0; c < 3; c++) {
+                    var sc = data.similitudes_clusters[c];
+                    var isActive = c === data.cluster ? ' active' : '';
+                    var barColor = clusterColors[c];
+                    html += '<div class="cluster-compare-row' + isActive + '">' +
+                        '<span class="compare-label">' + sc.nivel_riesgo + '</span>' +
+                        '<div class="compare-bar-bg"><div class="compare-bar-fill" style="width:' + sc.porcentaje + '%;background:' + barColor + '"></div></div>' +
+                        '<span class="compare-pct">' + sc.porcentaje + '%</span>' +
+                        '</div>';
+                }
+                document.getElementById('resultClustersCompare').innerHTML = html;
+
+                var variables = data.contribucion_variables;
+                var varLabels = ['Ingresos Mensuales', '% Crédito Utilizado', 'Días Atraso Prom.'];
+                var varFormats = [
+                    function(v){ return 'S/ ' + v.toLocaleString('es-PE'); },
+                    function(v){ return (v*100).toFixed(1) + '%'; },
+                    function(v){ return v.toFixed(0) + ' d\u00edas'; }
+                ];
+                var varHtml = '<div class="compare-title">Desglose por variable vs centroide</div>';
+                for (var i = 0; i < variables.length; i++) {
+                    var v = variables[i];
+                    var desv = v.desviacion_pct;
+                    var desvColor = desv < 20 ? '#00c853' : desv < 50 ? '#ffc107' : '#f44336';
+                    varHtml += '<div class="variable-row">' +
+                        '<div class="var-header"><span class="var-name">' + varLabels[i] + '</span><span class="var-desv" style="color:' + desvColor + '">' + desv + '% desv.</span></div>' +
+                        '<div class="var-values"><span>Cliente: <strong>' + varFormats[i](v.valor_cliente) + '</strong></span><span>Centroide: <strong>' + varFormats[i](v.valor_centroide) + '</strong></span></div>' +
+                        '</div>';
+                }
+                document.getElementById('resultVariables').innerHTML = varHtml;
+
                 document.getElementById('resultRecomendacion').textContent =
-                    'Recomendaci\u00f3n: ' + data.recomendacion_accion;
+                    data.recomendacion_accion;
 
                 document.getElementById('evalResult').style.display = 'block';
             })
-            .catch(() => {
-                const badgeEl = document.getElementById('resultBadge');
+            .catch(function() {
+                var badgeEl = document.getElementById('resultBadge');
                 badgeEl.className = 'result-badge badge-high';
                 badgeEl.textContent = 'Error';
-                document.getElementById('resultSimilitud').textContent =
-                    'No se pudo conectar con el servidor';
-                document.getElementById('resultRecomendacion').textContent = '';
+                document.getElementById('gaugeValue').textContent = '---';
+                document.getElementById('gaugeFill').style.width = '0%';
+                document.getElementById('resultClustersCompare').innerHTML = '';
+                document.getElementById('resultVariables').innerHTML = '';
+                document.getElementById('resultRecomendacion').textContent = 'No se pudo conectar con el servidor';
                 document.getElementById('evalResult').style.display = 'block';
             })
-            .finally(() => {
+            .finally(function() {
                 btn.textContent = 'Predecir Segmento';
                 btn.disabled = false;
             });
