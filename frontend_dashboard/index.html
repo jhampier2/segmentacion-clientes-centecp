@@ -75,29 +75,33 @@
                 <button class="btn-close" onclick="cerrarModal()">&times;</button>
             </div>
             <div class="modal-body">
+                <div class="modal-info-banner">
+                    <span class="info-icon">i</span>
+                    <span>Ingresa los datos financieros del cliente. El modelo calcular&aacute; a qu&eacute; perfil de riesgo se asemeja y qu&eacute; tan confiable es la predicci&oacute;n.</span>
+                </div>
                 <div class="input-group">
-                    <label>Ingresos Mensuales</label>
+                    <label>Ingresos Mensuales <span class="info-tip" data-tip="Ingresos declarados por el cliente en soles. Es el principal predictor de capacidad de pago. El modelo separa clientes con ingresos bajos (~S/ 5,000), medios (~S/ 4,800) y altos (~S/ 14,000).">&#9432;</span></label>
                     <div class="input-with-prefix">
                         <span class="prefix">S/</span>
                         <input type="number" id="eval_ingresos" step="0.01" value="5000" />
                     </div>
                 </div>
                 <div class="input-group">
-                    <label>L&iacute;nea de Cr&eacute;dito Utilizada</label>
+                    <label>L&iacute;nea de Cr&eacute;dito Utilizada (%) <span class="info-tip" data-tip="Porcentaje del cr&eacute;dito aprobado que ya est&aacute; comprometido (saldo pendiente / monto aprobado). 0% = no debe nada, 100% = debe todo. Alta utilizaci&oacute;n indica sobreendeudamiento.">&#9432;</span></label>
                     <div class="input-with-prefix">
                         <span class="prefix">%</span>
-                        <input type="number" id="eval_linea" step="0.01" min="0" max="100" value="50" />
+                        <input type="number" id="eval_linea" step="0.01" min="0" max="100" value="25" />
                     </div>
                 </div>
                 <div class="input-group">
-                    <label>D&iacute;as de Atraso Promedio</label>
-                    <input type="number" id="eval_atraso" value="5" />
+                    <label>D&iacute;as de Atraso Promedio <span class="info-tip" data-tip="Promedio de d&iacute;as de retraso en los pagos. Negativo = paga antes del vencimiento (bueno). Positivo = paga tarde (malo). 0 = paga el d&iacute;a exacto. Ej: -50 significa que paga 50 d&iacute;as antes.">&#9432;</span></label>
+                    <input type="number" id="eval_atraso" value="-50" />
                 </div>
                 <button class="btn-evaluar btn-full" onclick="evaluarCliente()">Predecir Segmento</button>
                 <div id="evalResult" class="result-card" style="display:none;">
                     <div class="result-badge" id="resultBadge"></div>
                     <div class="result-similitud-gauge">
-                        <div class="gauge-label">Similitud al centroide</div>
+                        <div class="gauge-label">Similitud al centroide <span class="info-tip-small" data-tip="Qu&eacute; tan cerca est&aacute; este cliente del perfil promedio de su cluster. 90%+ = muy t&iacute;pico. 0% = no se parece a nadie de la cartera (outlier).">&#9432;</span></div>
                         <div class="gauge-bar-bg"><div class="gauge-bar-fill" id="gaugeFill"></div></div>
                         <div class="gauge-value" id="gaugeValue"></div>
                     </div>
