@@ -214,7 +214,11 @@ Acción de negocio predefinida según el cluster. Son sugerencias basadas en reg
 2. El panel superior muestra **4 KPIs**: total de clientes, ingreso promedio, días de atraso promedio y utilización promedio.
 3. Los gráficos de dona y barras muestran la distribución de clientes por cluster.
 4. La tabla inferior lista los clientes con paginación (20 por página). Usa los **filtros** (Cobranza, Evaluación, Mejores Tasas) para ver solo clientes de un cluster específico.
-5. El botón **"Evaluar Nuevo Cliente"** abre un modal donde ingresas las 3 variables. El resultado aparece instantáneamente con el nivel de riesgo, porcentaje de similitud y recomendación.
+5. El botón **"Evaluar Nuevo Cliente"** abre un modal con entrada de 3 variables. El resultado muestra:
+   - **Gauge visual** de similitud (barra animada 0–100% con color por cluster)
+   - **Comparativa multi-cluster** — similitud del cliente contra los 3 clusters simultáneamente, para detectar casos en zona gris entre dos perfiles
+   - **Desglose por variable** — cada feature comparada contra el centroide con % de desviación coloreado (verde <20%, ámbar <50%, rojo >50%)
+   - Recomendación de negocio accionable
 
 ### API (para integración)
 
@@ -261,8 +265,33 @@ curl -X POST http://localhost:5000/api/dashboard/actualizar
 |-------|------|-------------|
 | `cluster` | int | ID del cluster asignado (0, 1, 2) |
 | `nivel_riesgo` | string | Etiqueta legible |
-| `porcentaje_similitud` | string | Qué tan cerca está del centroide (ej. `"90%"`) |
+| `porcentaje_similitud` | string | Similitud formateada (ej. `"90%"`) |
+| `similitud_valor` | int | Similitud como número puro (ej. `90`) |
+| `similitudes_clusters` | object | Similitud a cada uno de los 3 clusters `{0: {nivel_riesgo, porcentaje}, 1: {...}, 2: {...}}` |
+| `contribucion_variables` | array | Desglose por feature: `[{variable, valor_cliente, valor_centroide, desviacion_pct}]` |
 | `recomendacion_accion` | string | Acción de negocio sugerida |
+
+**Respuesta de ejemplo:**
+
+```json
+{
+  "cluster": 0,
+  "nivel_riesgo": "Bajo Riesgo",
+  "porcentaje_similitud": "90%",
+  "similitud_valor": 90,
+  "similitudes_clusters": {
+    "0": { "nivel_riesgo": "Bajo Riesgo", "porcentaje": 90 },
+    "1": { "nivel_riesgo": "Riesgo Moderado", "porcentaje": 11 },
+    "2": { "nivel_riesgo": "Riesgo Alto", "porcentaje": 8 }
+  },
+  "contribucion_variables": [
+    { "variable": "ingresos_mensuales", "valor_cliente": 5000.0, "valor_centroide": 5080.47, "desviacion_pct": 1.6 },
+    { "variable": "linea_credito_utilizada", "valor_cliente": 0.25, "valor_centroide": 0.28, "desviacion_pct": 2.5 },
+    { "variable": "dias_atraso_promedio", "valor_cliente": -50.0, "valor_centroide": -54.5, "desviacion_pct": 8.3 }
+  ],
+  "recomendacion_accion": "Ofrecer tasa preferencial del 12% con línea de crédito adicional"
+}
+```
 
 ---
 
