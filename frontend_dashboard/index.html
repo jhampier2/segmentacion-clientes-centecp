@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dashboard - Segmentación de Clientes</title>
+    <link rel="stylesheet" href="css/dashboard.css" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script type="module" src="js/api_client.js"></script>
+    <script type="module" src="js/charts.js"></script>
+</head>
+<body>
+    <div class="dashboard">
+        <h1>Dashboard de Segmentaci&oacute;n</h1>
+        <p class="subtitle">Clustering de clientes seg&uacute;n comportamiento de pago &mdash; K-Means &middot; Tiempo real</p>
+
+        <div id="loading" class="loading">Cargando datos desde la base de datos</div>
+        <div id="error" class="error-msg" style="display:none;"></div>
+
+        <div id="content" style="display:none;">
+            <div style="text-align:right; margin-bottom:20px;">
+                <button class="btn-evaluar" onclick="abrirModal()">+ Evaluar Nuevo Cliente</button>
+            </div>
+            <div class="kpi-grid" id="kpiGrid"></div>
+
+            <div class="charts-row">
+                <div class="glass-card chart-card">
+                    <h3>Distribuci&oacute;n por Nivel de Riesgo</h3>
+                    <canvas id="donutChart"></canvas>
+                </div>
+                <div class="glass-card chart-card">
+                    <h3>Comparativa por Cluster</h3>
+                    <canvas id="barChart"></canvas>
+                </div>
+            </div>
+
+            <div class="table-section">
+                <div class="table-header">
+                    <h3>Clientes por Segmento</h3>
+                    <div class="cluster-pills">
+                        <button class="pill active" data-cluster="2" onclick="filtrarCluster(2)">Cobranza (Riesgo Alto)</button>
+                        <button class="pill" data-cluster="1" onclick="filtrarCluster(1)">Evaluaci&oacute;n (Riesgo Moderado)</button>
+                        <button class="pill" data-cluster="0" onclick="filtrarCluster(0)">Mejores Tasas (Riesgo Bajo)</button>
+                    </div>
+                </div>
+                <div class="glass-card table-card">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Cliente</th>
+                                <th>DNI</th>
+                                <th>Ingresos</th>
+                                <th>Cr&eacute;dito Utilizado</th>
+                                <th>D&iacute;as Atraso Prom.</th>
+                                <th>Riesgo</th>
+                            </tr>
+                        </thead>
+                        <tbody id="riesgoTableBody"></tbody>
+                    </table>
+                    <div class="pagination" id="pagination">
+                        <button class="page-btn" id="btnPrev">Anterior</button>
+                        <span class="page-info" id="pageInfo">Página 1 de 1</span>
+                        <button class="page-btn" id="btnNext">Siguiente</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="modalOverlay" onclick="cerrarModal(event)">
+        <div class="modal glass-card" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <h3>Evaluar Nuevo Cliente</h3>
+                <button class="btn-close" onclick="cerrarModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="input-group">
+                    <label>Ingresos Mensuales</label>
+                    <div class="input-with-prefix">
+                        <span class="prefix">S/</span>
+                        <input type="number" id="eval_ingresos" step="0.01" value="5000" />
+                    </div>
+                </div>
+                <div class="input-group">
+                    <label>L&iacute;nea de Cr&eacute;dito Utilizada</label>
+                    <div class="input-with-prefix">
+                        <span class="prefix">%</span>
+                        <input type="number" id="eval_linea" step="0.01" min="0" max="100" value="50" />
+                    </div>
+                </div>
+                <div class="input-group">
+                    <label>D&iacute;as de Atraso Promedio</label>
+                    <input type="number" id="eval_atraso" value="5" />
+                </div>
+                <button class="btn-evaluar btn-full" onclick="evaluarCliente()">Predecir Segmento</button>
+                <div id="evalResult" class="result-card" style="display:none;">
+                    <div class="result-badge" id="resultBadge"></div>
+                    <div class="result-similitud" id="resultSimilitud"></div>
+                    <div class="result-recomendacion" id="resultRecomendacion"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { fetchResumen, fetchClientes } from './js/api_client.js';
+        import { renderDonutChart, renderBarChart } from './js/charts.js';
+
+        const CLUSTER_COLORS = { 0: 'badge-low', 1: 'badge-moderate', 2: 'badge-high' };
+        const CLUSTER_LABELS = { 0: 'Bajo Riesgo', 1: 'Riesgo Moderado', 2: 'Riesgo Alto' };
+        const CLUSTER_BADGES = { 0: 'badge-low', 1: 'badge-moderate', 2: 'badge-high' };
+        const ROWS_PER_PAGE = 20;
+        let clusterActual = 2;
+        let clientesData = [];
+        let paginaActual = 1;
+
+        function renderPagina() {
+            const totalPag = Math.max(1, Math.ceil(clientesData.length / ROWS_PER_PAGE));
+            if (paginaActual > totalPag) paginaActual = totalPag;
+            if (paginaActual < 1) paginaActual = 1;
+
+            const inicio = (paginaActual - 1) * ROWS_PER_PAGE;
+            const fin = Math.min(inicio + ROWS_PER_PAGE, clientesData.length);
+            const pageRows = clientesData.slice(inicio, fin);
+
+            const tbody = document.getElementById('riesgoTableBody');
+            if (clientesData.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#888;padding:30px;">No hay clientes en este segmento</td></tr>';
+            } else {
+                tbody.innerHTML = pageRows.map((c, i) => `
+                    <tr>
+                        <td>${inicio + i + 1}</td>
+                        <td>${c.nombre_completo}</td>
+                        <td>${c.dni}</td>
+                        <td>${formatCurrency(c.ingresos_mensuales)}</td>
+                        <td>${(c.linea_credito_utilizada * 100).toFixed(1)}%</td>
+                        <td>${c.dias_atraso_promedio}</td>
+                        <td><span class="badge ${CLUSTER_BADGES[c.cluster]}">${CLUSTER_LABELS[c.cluster]}</span></td>
+                    </tr>
+                `).join('');
+            }
+
+            document.getElementById('pageInfo').textContent = `Página ${paginaActual} de ${totalPag}`;
+            document.getElementById('btnPrev').disabled = paginaActual <= 1;
+            document.getElementById('btnNext').disabled = paginaActual >= totalPag;
+        }
+
+        function formatCurrency(n) {
+            return new Intl.NumberFormat('es-PE', { style: 'currency', currency: 'PEN', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(n);
+        }
+
+        function renderKPIs(metricas) {
+            const grid = document.getElementById('kpiGrid');
+            const items = [
+                { label: 'Total Clientes', value: metricas.total_clientes },
+                { label: 'Ingreso Promedio', value: formatCurrency(metricas.ingreso_promedio) },
+                { label: 'Días Atraso Prom.', value: metricas.dias_atraso_promedio + ' d&iacute;as' },
+                { label: 'Utilización Prom.', value: (metricas.utilizacion_promedio * 100).toFixed(1) + '%' }
+            ];
+            grid.innerHTML = items.map(item => `
+                <div class="glass-card kpi-card">
+                    <div class="kpi-value">${item.value}</div>
+                    <div class="kpi-label">${item.label}</div>
+                </div>
+            `).join('');
+        }
+
+        function renderRiesgoTable(data) {
+            const clientes = data.clientes;
+            const cluster = data.cluster;
+            const tbody = document.getElementById('riesgoTableBody');
+            if (!clientes || clientes.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#888;padding:30px;">No hay clientes en este segmento</td></tr>';
+                return;
+            }
+            tbody.innerHTML = clientes.map((c, i) => `
+                <tr>
+                    <td>${i + 1}</td>
+                    <td>${c.nombre_completo}</td>
+                    <td>${c.dni}</td>
+                    <td>${formatCurrency(c.ingresos_mensuales)}</td>
+                    <td>${(c.linea_credito_utilizada * 100).toFixed(1)}%</td>
+                    <td>${c.dias_atraso_promedio}</td>
+                    <td><span class="badge ${CLUSTER_BADGES[c.cluster]}">${CLUSTER_LABELS[c.cluster]}</span></td>
+                </tr>
+            `).join('');
+        }
+
+        async function cargarDashboard() {
+            try {
+                const [resumen, riesgo] = await Promise.all([fetchResumen(), fetchClientes(2)]);
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('content').style.display = 'block';
+
+                renderKPIs(resumen.metricas);
+                renderDonutChart('donutChart', resumen.distribucion);
+                renderBarChart('barChart', resumen.distribucion);
+                clientesData = riesgo.clientes;
+                paginaActual = 1;
+                renderPagina();
+            } catch (err) {
+                document.getElementById('loading').style.display = 'none';
+                const errEl = document.getElementById('error');
+                errEl.style.display = 'block';
+                errEl.textContent = 'Error al conectar con el servidor: ' + err.message;
+            }
+        }
+
+        cargarDashboard();
+
+        window.filtrarCluster = async function(cluster) {
+            document.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
+            document.querySelector(`.pill[data-cluster="${cluster}"]`).classList.add('active');
+            clusterActual = cluster;
+            const tbody = document.getElementById('riesgoTableBody');
+            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#555;padding:30px;">Cargando...</td></tr>';
+            try {
+                const data = await fetchClientes(cluster);
+                clientesData = data.clientes;
+                paginaActual = 1;
+                renderPagina();
+            } catch {
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#f44336;padding:30px;">Error al cargar datos</td></tr>';
+            }
+        };
+
+        document.getElementById('btnPrev').addEventListener('click', function() {
+            paginaActual--;
+            renderPagina();
+        });
+        document.getElementById('btnNext').addEventListener('click', function() {
+            paginaActual++;
+            renderPagina();
+        });
+
+        window.abrirModal = function() {
+            document.getElementById('modalOverlay').style.display = 'flex';
+            document.getElementById('evalResult').style.display = 'none';
+        };
+
+        window.cerrarModal = function(e) {
+            if (e && e.target !== e.currentTarget) return;
+            document.getElementById('modalOverlay').style.display = 'none';
+        };
+
+        window.evaluarCliente = function() {
+            const payload = {
+                ingresos_mensuales: parseFloat(document.getElementById('eval_ingresos').value) || 0,
+                linea_credito_utilizada: (parseFloat(document.getElementById('eval_linea').value) || 0) / 100,
+                dias_atraso_promedio: parseInt(document.getElementById('eval_atraso').value) || 0
+            };
+
+            const btn = document.querySelector('.btn-full');
+            btn.textContent = 'Procesando...';
+            btn.disabled = true;
+
+            fetch('http://localhost:5000/api/segmentar', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            })
+            .then(r => r.json())
+            .then(data => {
+                const badCls = ['badge-low', 'badge-moderate', 'badge-high'];
+                const clsMap = {0: 0, 1: 1, 2: 2};
+                const idx = clsMap[data.cluster] ?? 0;
+                const badgeEl = document.getElementById('resultBadge');
+                badgeEl.className = 'result-badge ' + badCls[idx];
+                badgeEl.textContent = data.nivel_riesgo;
+
+                document.getElementById('resultSimilitud').textContent =
+                    'Similitud: ' + data.porcentaje_similitud;
+                document.getElementById('resultRecomendacion').textContent =
+                    'Recomendaci\u00f3n: ' + data.recomendacion_accion;
+
+                document.getElementById('evalResult').style.display = 'block';
+            })
+            .catch(() => {
+                const badgeEl = document.getElementById('resultBadge');
+                badgeEl.className = 'result-badge badge-high';
+                badgeEl.textContent = 'Error';
+                document.getElementById('resultSimilitud').textContent =
+                    'No se pudo conectar con el servidor';
+                document.getElementById('resultRecomendacion').textContent = '';
+                document.getElementById('evalResult').style.display = 'block';
+            })
+            .finally(() => {
+                btn.textContent = 'Predecir Segmento';
+                btn.disabled = false;
+            });
+        };
+    </script>
+</body>
+</html>
